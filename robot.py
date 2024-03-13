@@ -109,3 +109,8 @@ class MyRobot(TimedRobot):
                 self.yAxisAngleCmd = yAngle + gimbal_y_center_angle
                 break # just track the first thing we see
 
+        # TODO - get all targets, and track the lowest-id even numbered one
+        # TODO - slew rate limit
+        # TODO - debounce no target visible for a few seconds, then go back to center
+            
+            
