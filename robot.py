@@ -3,7 +3,7 @@ from wpimath.geometry import Transform3d, Pose3d, Translation3d, Rotation3d
 from wpimath.units import inchesToMeters, radiansToDegrees
 import math
 from photonlibpy.photonCamera import PhotonCamera, setVersionCheckEnabled #VisionLEDMode
-
+from wpimath.filter import SlewRateLimiter, Debouncer
 
 ORIGIN_POSE = Pose3d()
 
@@ -32,6 +32,8 @@ POINTER_GIMBAL_MOUNT_POSE = Pose3d(
 gimbalToOrigin = Transform3d(POINTER_GIMBAL_MOUNT_POSE,ORIGIN_POSE)
 originToCam = Transform3d(ORIGIN_POSE, CAM_MOUNT_POSE)
 
+MAX_SERVO_SPEED_DEG_PER_SEC = 90.0
+
 # Mechanical offsets of the servo - punch in whatever angle mechanically gets the axis centered
 gimbal_x_center_angle = 90.0
 gimbal_y_center_angle = 90.0
@@ -45,7 +47,7 @@ def _limit(input:float, limit:float)->float:
     elif(input < -1.0 * limit):
         return -1.0 * limit
     else:
-        return limit
+        return input
 
 class MyRobot(TimedRobot):
 
@@ -55,8 +57,18 @@ class MyRobot(TimedRobot):
         self.yAxisServo = Servo(1)
 
         # Angle commands for hardware
-        self.xAxisAngleCmd = 0.0
-        self.yAxisAngleCmd = 0.0
+        self.xAxisAngleCmd = gimbal_x_center_angle
+        self.yAxisAngleCmd = gimbal_y_center_angle
+        self.rawXTgt = gimbal_x_center_angle
+        self.rawYTgt = gimbal_y_center_angle
+
+        # Limit servo motion to be physically plausable
+        self.xAxisSlewRate = SlewRateLimiter(MAX_SERVO_SPEED_DEG_PER_SEC)
+        self.yAxisSlewRate = SlewRateLimiter(MAX_SERVO_SPEED_DEG_PER_SEC)
+
+        # Debouncer to re-home to center when no target visible
+        self.goHomeDbnc = Debouncer(1.0, Debouncer.DebounceType.kRising)
+
 
         #Disable livewindow so we can use test for our own purposes
         LiveWindow.disableAllTelemetry()
@@ -89,28 +101,51 @@ class MyRobot(TimedRobot):
 
         res = self.cam.getLatestResult()
 
+        curCamToTarget = None
+        curTrackedID = -1
+
         for target in res.getTargets():
             # Transform both poses to on-field poses
             tgtID = target.getFiducialId()
-            if (tgtID % 2) == 0:
-                # Demo - only track even targets, ignore odd ones
 
-                # Looking to calculate gimbal to target
-                camToTarget = target.getBestCameraToTarget()
-                gimbalToTarget = POINTER_GIMBAL_MOUNT_POSE.transformBy(gimbalToOrigin).transformBy(originToCam).transformBy(camToTarget)
+            if(tgtID > curTrackedID):
+                # Track the highest ID target
+                curTrackedID = tgtID
+                curCamToTarget = target.getBestCameraToTarget()
 
-                xAngle = radiansToDegrees(math.atan2(gimbalToTarget.y, gimbalToTarget.x))
-                yAngle = radiansToDegrees(math.atan2(gimbalToTarget.z, gimbalToTarget.x))
+        targetVisible = (curTrackedID != -1)
+        shouldHome = self.goHomeDbnc.calculate(not targetVisible)
 
-                xAngle = _limit(xAngle, gimbal_x_max_angle)
-                yAngle = _limit(yAngle, gimbal_y_max_angle)
 
-                self.xAxisAngleCmd = xAngle + gimbal_x_center_angle
-                self.yAxisAngleCmd = yAngle + gimbal_y_center_angle
-                break # just track the first thing we see
 
-        # TODO - get all targets, and track the lowest-id even numbered one
-        # TODO - slew rate limit
-        # TODO - debounce no target visible for a few seconds, then go back to center
+        if(targetVisible):
+
+            # Looking to calculate gimbal to target
+            gimbalToTarget = POINTER_GIMBAL_MOUNT_POSE.transformBy(gimbalToOrigin).transformBy(originToCam).transformBy(curCamToTarget)
+
+            xAngle = radiansToDegrees(math.atan2(gimbalToTarget.y, gimbalToTarget.x))
+            yAngle = radiansToDegrees(math.atan2(gimbalToTarget.z, gimbalToTarget.x))
+
+            xAngle = _limit(xAngle, gimbal_x_max_angle)
+            yAngle = _limit(yAngle, gimbal_y_max_angle)
+
+            self.rawXTgt = xAngle + gimbal_x_center_angle
+            self.rawYTgt = yAngle + gimbal_y_center_angle
+
+        elif(shouldHome):
+            self.rawXTgt = gimbal_x_center_angle
+            self.rawYTgt = gimbal_y_center_angle
+
+        else:
+            # Hold previous position
+            pass
+
+        self.xAxisAngleCmd = self.xAxisSlewRate.calculate(self.rawXTgt)
+        self.yAxisAngleCmd = self.yAxisSlewRate.calculate(self.rawYTgt)
+        
+
+
+
+
             
             
