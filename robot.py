@@ -9,6 +9,7 @@ from wpimath.filter import SlewRateLimiter, Debouncer
 # Origin defined as being directly underneath the servo X pivot on the top surface of the demo board
 ORIGIN_POSE = Pose3d()
 
+# Pose of camera sensor, in the above reference frame
 CAM_MOUNT_POSE = Pose3d(
     Translation3d(
         inchesToMeters(0.25),
@@ -20,7 +21,8 @@ CAM_MOUNT_POSE = Pose3d(
     )
 )
 
-POINTER_GIMBAL_MOUNT_POSE = Pose3d(
+#Intersection of the X and Y rotational axes on the gimbal
+GIMBAL_ROT_AXIS_MOUNT_POSE = Pose3d(
     Translation3d(
         inchesToMeters(0.0), 
         inchesToMeters(0.0),
@@ -31,15 +33,30 @@ POINTER_GIMBAL_MOUNT_POSE = Pose3d(
     )
 )
 
-gimbalToOrigin = Transform3d(POINTER_GIMBAL_MOUNT_POSE,ORIGIN_POSE)
+# Calculated transforms
+gimbalToOrigin = Transform3d(GIMBAL_ROT_AXIS_MOUNT_POSE,ORIGIN_POSE)
 originToCam = Transform3d(ORIGIN_POSE, CAM_MOUNT_POSE)
 
-MAX_SERVO_SPEED_DEG_PER_SEC = 90.0
+# Transform from the gimbal rotational axes intersection to the pointer end effector
+GIMBAL_ROT_AXIS_TO_POINTER = Transform3d(
+    Pose3d(),
+    Pose3d(
+        Translation3d(
+            inchesToMeters(0.0), 
+            inchesToMeters(0.0),
+            inchesToMeters(2.5),
+        ), 
+        Rotation3d.fromDegrees(
+            0.0,0.0,0.0 
+        )
+    )
+)
 
-# Mechanical offsets of the servo - punch in whatever angle mechanically gets the axis centered
+
+# Physical/Mechanical limits
+MAX_SERVO_SPEED_DEG_PER_SEC = 90.0
 gimbal_x_center_angle = 90.0
 gimbal_y_center_angle = 90.0
-
 gimbal_x_max_angle = 45.0
 gimbal_y_max_angle = 45.0
 
@@ -80,10 +97,14 @@ class MyRobot(TimedRobot):
         setVersionCheckEnabled(False)
         self.cam = PhotonCamera("DEMO")
 
+        # Range Display
+        self.distAlongGroundMM = -1.0
+
 
     def robotPeriodic(self) -> None:
         SmartDashboard.putNumber("X Angle Cmd", self.xAxisAngleCmd)
         SmartDashboard.putNumber("Y Angle Cmd", self.yAxisAngleCmd)
+        SmartDashboard.putNumber("Range (mm)", self.distAlongGroundMM)
 
         self.xAxisServo.setAngle(self.xAxisAngleCmd)
         self.yAxisServo.setAngle(self.yAxisAngleCmd)
@@ -123,20 +144,22 @@ class MyRobot(TimedRobot):
         if(targetVisible):
 
             # Looking to calculate gimbal to target
-            gimbalToTarget = POINTER_GIMBAL_MOUNT_POSE.transformBy(gimbalToOrigin).transformBy(originToCam).transformBy(curCamToTarget)
+            pointerToTarget = GIMBAL_ROT_AXIS_MOUNT_POSE.transformBy(GIMBAL_ROT_AXIS_TO_POINTER).transformBy(gimbalToOrigin).transformBy(originToCam).transformBy(curCamToTarget)
 
-            xAngle = radiansToDegrees(math.atan2(gimbalToTarget.y, gimbalToTarget.x))
-            yAngle = radiansToDegrees(math.atan2(gimbalToTarget.z, gimbalToTarget.x))
+            xAngle = radiansToDegrees(math.atan2(pointerToTarget.y, pointerToTarget.x))
+            yAngle = radiansToDegrees(math.atan2(pointerToTarget.z, pointerToTarget.x))
 
             xAngle = _limit(xAngle, gimbal_x_max_angle)
             yAngle = _limit(yAngle, gimbal_y_max_angle)
 
             self.rawXTgt = xAngle + gimbal_x_center_angle
             self.rawYTgt = yAngle + gimbal_y_center_angle
+            self.distAlongGroundMM = pointerToTarget.x * 1000
 
         elif(shouldHome):
             self.rawXTgt = gimbal_x_center_angle
             self.rawYTgt = gimbal_y_center_angle
+            self.distAlongGroundMM = -1.0
 
         else:
             # Hold previous position
@@ -145,7 +168,6 @@ class MyRobot(TimedRobot):
         self.xAxisAngleCmd = self.xAxisSlewRate.calculate(self.rawXTgt)
         self.yAxisAngleCmd = self.yAxisSlewRate.calculate(self.rawYTgt)
         
-
 
 
 
