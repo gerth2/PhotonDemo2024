@@ -5,24 +5,26 @@ import math
 from photonlibpy.photonCamera import PhotonCamera, setVersionCheckEnabled #VisionLEDMode
 from wpimath.filter import SlewRateLimiter, Debouncer
 
+
+# Origin defined as being directly underneath the servo X pivot on the top surface of the demo board
 ORIGIN_POSE = Pose3d()
 
 CAM_MOUNT_POSE = Pose3d(
     Translation3d(
-        inchesToMeters(0.0), #TODO update these
-        inchesToMeters(-10.0),
-        inchesToMeters(1.0),
+        inchesToMeters(0.25),
+        inchesToMeters(3.6),
+        inchesToMeters(1.55),
     ), 
     Rotation3d.fromDegrees(
-        0.0,30.0,0.0 #TODO update these
+        0.0,-30.0,0.0 
     )
 )
 
 POINTER_GIMBAL_MOUNT_POSE = Pose3d(
     Translation3d(
-        inchesToMeters(0.0), #TODO update these
-        inchesToMeters(10.0),
-        inchesToMeters(1.0),
+        inchesToMeters(0.0), 
+        inchesToMeters(0.0),
+        inchesToMeters(2.5),
     ), 
     Rotation3d.fromDegrees(
         0.0,0.0,0.0 
@@ -38,8 +40,8 @@ MAX_SERVO_SPEED_DEG_PER_SEC = 90.0
 gimbal_x_center_angle = 90.0
 gimbal_y_center_angle = 90.0
 
-gimbal_x_max_angle = 30.0
-gimbal_y_max_angle = 30.0
+gimbal_x_max_angle = 45.0
+gimbal_y_max_angle = 45.0
 
 def _limit(input:float, limit:float)->float:
     if(input > limit):
