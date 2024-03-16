@@ -44,7 +44,7 @@ GIMBAL_ROT_AXIS_TO_POINTER = Transform3d(
         Translation3d(
             inchesToMeters(0.0), 
             inchesToMeters(0.0),
-            inchesToMeters(2.5),
+            inchesToMeters(0.5),
         ), 
         Rotation3d.fromDegrees(
             0.0,0.0,0.0 
