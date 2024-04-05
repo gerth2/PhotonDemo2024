@@ -6,12 +6,12 @@
     "GLOBAL": {
       "fps": "120",
       "height": "900",
-      "maximized": "0",
+      "maximized": "1",
       "style": "0",
       "userScale": "2",
       "width": "1520",
-      "xpos": "1377",
-      "ypos": "277"
+      "xpos": "0",
+      "ypos": "29"
     }
   },
   "Window": {
@@ -23,12 +23,12 @@
     "###/SmartDashboard/DT Pose Low Std Dev": {
       "Collapsed": "0",
       "Pos": "818,410",
-      "Size": "668,358"
+      "Size": "1612,918"
     },
     "###FMS": {
       "Collapsed": "0",
       "Pos": "6,675",
-      "Size": "336,158"
+      "Size": "202,214"
     },
     "###Joysticks": {
       "Collapsed": "0",
@@ -42,7 +42,7 @@
     },
     "###NetworkTables Info": {
       "Collapsed": "0",
-      "Pos": "312,162",
+      "Pos": "-8,250",
       "Size": "937,181"
     },
     "###Other Devices": {

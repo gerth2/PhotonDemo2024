@@ -94,7 +94,7 @@ class MyRobot(TimedRobot):
         LiveWindow.setEnabled(False)
 
         # Camera for demo
-        setVersionCheckEnabled(False)
+        #setVersionCheckEnabled(False)
         self.cam = PhotonCamera("DEMO")
 
         # Range Display
